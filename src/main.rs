@@ -11,7 +11,7 @@ fn list_services(addr: &str, tags: &str) {
     let mut all_services: HashMap<String, Vec<String>> = catalog::Catalog::new(addr).services(); 
     let local_services: HashMap<String, structs::Service> = agent::Agent::new(addr).services();
     for (_, service) in local_services.iter(){
-        all_services.remove(service.Service);
+        all_services.remove(&service.Service);
     }
     let health_services: HashMap<&String, Vec<health::HealthService>> = all_services.iter()
         .map(|(k, _)| (k, health::Health::new(addr).service(k.as_slice(), tags)))
