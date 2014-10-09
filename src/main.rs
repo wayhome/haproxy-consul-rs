@@ -7,17 +7,23 @@ use std::collections::HashMap;
 
 use consul::{catalog, agent, health, structs};
 
-fn list_services(addr: &str, tags: &str) {
+type Service = HashMap<String, Vec<health::HealthService>>;
+
+
+fn list_extern_services(addr: &str, tags: &str) -> Service {
     let mut all_services: HashMap<String, Vec<String>> = catalog::Catalog::new(addr).services(); 
     let local_services: HashMap<String, structs::Service> = agent::Agent::new(addr).services();
     for (_, service) in local_services.iter(){
         all_services.remove(&service.Service);
     }
-    let health_services: HashMap<&String, Vec<health::HealthService>> = all_services.iter()
-        .map(|(k, _)| (k, health::Health::new(addr).service(k.as_slice(), tags)))
-        .filter(|&(_ ,ref v)| v.len() > 0)
-        .collect();
-    println!("health services: {}", health_services)
+    let mut health_services = HashMap::new();
+    for (k, v) in all_services.move_iter() {
+        let value = health::Health::new(addr).service(k.as_slice(), tags);
+        if value.len() > 0 {
+            health_services.insert(k, value);
+        }
+    }
+    health_services
 
 }
 
@@ -64,5 +70,6 @@ fn main() {
         Some(m) => m,
         None => "release".to_string(),
     };
-    list_services(address.as_slice(), tags.as_slice());
+    let extern_services = list_extern_services(address.as_slice(), tags.as_slice());
+    println!("extern services: {}", extern_services);
 }
