@@ -10,3 +10,5 @@ name = "hasu"
 [dependencies.consul]
 git = "https://github.com/youngking/consul-rust"
 
+[dependencies.rustache]
+git = "https://github.com/rustache/rustache"

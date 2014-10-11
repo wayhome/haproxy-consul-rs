@@ -1,9 +1,17 @@
 extern crate getopts;
+extern crate serialize;
+
 extern crate consul;
+extern crate rustache;
 
 use getopts::{optopt,reqopt,optflag,getopts,short_usage, usage};
 use std::os;
 use std::collections::HashMap;
+use std::io::timer;
+use std::time::Duration;
+use std::io::MemWriter;
+use serialize::json;
+
 
 use consul::{catalog, agent, health, structs};
 
@@ -17,10 +25,10 @@ fn list_extern_services(addr: &str, tags: &str) -> Service {
         all_services.remove(&service.Service);
     }
     let mut health_services = HashMap::new();
-    for (k, v) in all_services.move_iter() {
-        let value = health::Health::new(addr).service(k.as_slice(), tags);
-        if value.len() > 0 {
-            health_services.insert(k, value);
+    for (k, _) in all_services.move_iter() {
+        let v = health::Health::new(addr).service(k.as_slice(), tags);
+        if v.len() > 0 {
+            health_services.insert(k, v);
         }
     }
     health_services
@@ -43,10 +51,11 @@ fn main() {
 
     let opts = [
         optflag("h", "help", "print this help menu"),
-        optopt("i", "input", "template of haproxy configuration file", "inputfile"),
+        optopt("i", "input", "template of haproxy configuration file, default: /etc/hasu/haproxy.mustache", "inputfile"),
         optopt("o", "output", "path of output haproxy configuration file, default: /etc/haproxy/haproxy.cfg", "outfile"),
-        optopt("t", "tags", "tags that these services will filer, default: release", "tags"),
-        optopt("a", "address", "http address of a consul agent, default: http://localhost:8500/v1", "address"),
+        optopt("", "tags", "tags that these services will filer, default: release", "tags"),
+        optopt("", "address", "http address of a consul agent, default: http://localhost:8500/v1", "address"),
+        optopt("", "interval", "check interval from consul, default:10", "interval"),
     ];
     let matches = match getopts(args.tail(), opts) {
         Ok(m) => { m }
@@ -62,14 +71,28 @@ fn main() {
         None => "/etc/hasu/haproxy.mustache".to_string()
     };
 
-    let address  = match matches.opt_str("a"){
+    let address  = match matches.opt_str("address"){
         Some(m) => m,
         None => "http://localhost:8500/v1".to_string(),
     };
-    let tags  = match matches.opt_str("t"){
+    let tags  = match matches.opt_default("tags", "release"){
         Some(m) => m,
         None => "release".to_string(),
     };
-    let extern_services = list_extern_services(address.as_slice(), tags.as_slice());
-    println!("extern services: {}", extern_services);
+
+    let interval: i64 = match matches.opt_default("interval", "10"){
+        Some(m) => from_str(m.as_slice()).unwrap() ,
+        None => 5,
+    };
+
+    println!("interval: {}", interval);
+    loop {
+        let extern_services = list_extern_services(address.as_slice(), tags.as_slice());
+        let mut writer = MemWriter::new();
+        rustache::render_file_from_json_string(template.as_slice(), json::encode(&extern_services).as_slice(), &mut writer);
+        let result = String::from_utf8(writer.unwrap()).unwrap();
+        println!("extern services: {}", extern_services);
+        println!("{}", result);
+        timer::sleep(Duration::seconds(interval));
+    }
 }
