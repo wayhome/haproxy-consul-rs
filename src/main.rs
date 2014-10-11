@@ -10,6 +10,8 @@ use std::collections::HashMap;
 use std::io::timer;
 use std::time::Duration;
 use std::io::MemWriter;
+use std::str::from_utf8;
+
 use serialize::json;
 
 
@@ -25,7 +27,7 @@ fn list_extern_services(addr: &str, tags: &str) -> Service {
         all_services.remove(&service.Service);
     }
     let mut health_services = HashMap::new();
-    for (k, _) in all_services.move_iter() {
+    for (k, _) in all_services.into_iter() {
         let v = health::Health::new(addr).service(k.as_slice(), tags);
         if v.len() > 0 {
             health_services.insert(k, v);
@@ -33,6 +35,14 @@ fn list_extern_services(addr: &str, tags: &str) -> Service {
     }
     health_services
 
+}
+
+
+fn build_template(template:  &str, data: &str) -> String{
+    let mut writer = MemWriter::new();
+    rustache::render_file_from_json_string(template, data, &mut writer);
+    let result = String::from_utf8(writer.unwrap()).unwrap();
+    result
 }
 
 fn main() {
@@ -88,10 +98,8 @@ fn main() {
     println!("interval: {}", interval);
     loop {
         let extern_services = list_extern_services(address.as_slice(), tags.as_slice());
-        let mut writer = MemWriter::new();
-        rustache::render_file_from_json_string(template.as_slice(), json::encode(&extern_services).as_slice(), &mut writer);
-        let result = String::from_utf8(writer.unwrap()).unwrap();
         println!("extern services: {}", extern_services);
+        let result  = build_template(template.as_slice(), json::encode(&extern_services).as_slice());
         println!("{}", result);
         timer::sleep(Duration::seconds(interval));
     }
