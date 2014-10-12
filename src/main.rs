@@ -20,6 +20,15 @@ use consul::{catalog, agent, health, structs};
 type Service = HashMap<String, Vec<health::HealthService>>;
 
 
+#[deriving(Decodable,Encodable,Show)]
+struct ServiceEntry {
+    Name: String,
+    Port: int,
+    Mode: String,
+    Nodes: Vec<structs::Node>,
+}
+
+
 fn list_extern_services(addr: &str, tags: &str) -> Service {
     let mut all_services: HashMap<String, Vec<String>> = catalog::Catalog::new(addr).services(); 
     let local_services: HashMap<String, structs::Service> = agent::Agent::new(addr).services();
@@ -44,6 +53,25 @@ fn build_template(template:  &str, data: &str) -> String{
     let result = String::from_utf8(writer.unwrap()).unwrap();
     result
 }
+
+fn build_data(services :Service) -> HashMap<String, Vec<ServiceEntry>> {
+    let mut data = Vec::new();
+    for (name, v) in services.into_iter(){
+        let port = v[0].Service.Port;
+        let mode = if v[0].Service.Tags.contains(&"http".to_string()) {"http".to_string()} else {"tcp".to_string()};
+        let mut nodes = Vec::new();
+        for n in v.into_iter(){
+             nodes.push(n.Node)
+        }
+        let service = ServiceEntry{Name: name, Port: port, Mode: mode, Nodes: nodes};
+        data.push(service);
+    }
+
+    let mut map = HashMap::new();
+    map.insert("Services".to_string(), data);
+    map
+}
+
 
 fn main() {
     let args: Vec<String> = os::args();
@@ -99,7 +127,8 @@ fn main() {
     loop {
         let extern_services = list_extern_services(address.as_slice(), tags.as_slice());
         println!("extern services: {}", extern_services);
-        let result  = build_template(template.as_slice(), json::encode(&extern_services).as_slice());
+        let data = build_data(extern_services);
+        let result  = build_template(template.as_slice(), json::encode(&data).as_slice());
         println!("{}", result);
         timer::sleep(Duration::seconds(interval));
     }
