@@ -4,7 +4,7 @@ extern crate serialize;
 extern crate consul;
 extern crate rustache;
 
-use getopts::{optopt,reqopt,optflag,getopts,short_usage, usage};
+use getopts::{optopt,optflag,getopts,short_usage, usage};
 use std::os;
 use std::collections::HashMap;
 use std::io::timer;
@@ -22,10 +22,10 @@ type Service = HashMap<String, Vec<health::HealthService>>;
 
 #[deriving(Decodable,Encodable,Show)]
 struct ServiceEntry {
-    Name: String,
-    Port: int,
-    Mode: String,
-    Nodes: Vec<structs::Node>,
+    name: String,
+    port: int,
+    mode: String,
+    nodes: Vec<structs::Node>,
 }
 
 
@@ -63,12 +63,12 @@ fn build_data(services :Service) -> HashMap<String, Vec<ServiceEntry>> {
         for n in v.into_iter(){
              nodes.push(n.Node)
         }
-        let service = ServiceEntry{Name: name, Port: port, Mode: mode, Nodes: nodes};
+        let service = ServiceEntry{name: name, port: port, mode: mode, nodes: nodes};
         data.push(service);
     }
 
     let mut map = HashMap::new();
-    map.insert("Services".to_string(), data);
+    map.insert("services".to_string(), data);
     map
 }
 

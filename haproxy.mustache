@@ -27,11 +27,11 @@ listen stats :1936
 
 
 # For each service, build a backend definition
-{{#Services}}
-listen {{Name}}
-    mode {{Mode}}
-    bind 127.0.0.1:{{Port}}
-    {{# Nodes}}
-    server {{Node}} {{Address}}:{{Port}} check inter 5s fall 3
-    {{/Nodes}}
-{{/Services}}
+{{#services}}
+listen {{name}}
+    mode {{mode}}
+    bind 127.0.0.1:{{port}}
+    {{# nodes}}
+    server {{Node}} {{Address}}:{{port}} check inter 5s fall 3
+    {{/nodes}}
+{{/services}}
